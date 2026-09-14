@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from pydantic import Field
-
+from faster_whisper import WhisperModel
 from nanobot.bus.events import OutboundMessage
 from nanobot.bus.outbound_events import ContextCompactionEvent, ProgressEvent
 from nanobot.bus.queue import MessageBus
@@ -427,7 +427,21 @@ class DiscordChannel(BaseChannel):
         self._working_emoji_tasks: dict[str, asyncio.Task[None]] = {}
         self._stream_bufs: dict[str, _StreamBuf] = {}
         self._known_channels: dict[str, Any] = {}
+        self._whisper_model = WhisperModel(
+            "large-v3",           # ou "medium"/"small" selon ta VRAM
+            device="cpu",          # "cpu" sinon
+            compute_type="int8", # "int8" si CPU ou VRAM limitée
+            cpu_threads=8,
+        )
+    def _is_discord_voice_message(self, attachment: discord.Attachment) -> bool:
+        return attachment.is_voice_message()
 
+    def _transcribe_sync(self, file_path: Path) -> str:
+        segments, _info = self._whisper_model.transcribe(
+            str(file_path), beam_size=1, vad_filter=True,
+        )
+        return " ".join(seg.text.strip() for seg in segments).strip()
+    
     def _remember_channel(self, channel: Any) -> None:
         self._known_channels[self._channel_key(channel)] = channel
 
@@ -745,12 +759,69 @@ class DiscordChannel(BaseChannel):
                 media_dir.mkdir(parents=True, exist_ok=True)
                 safe_name = safe_filename(filename)
                 file_path = media_dir / f"{attachment.id}_{safe_name}"
-                await attachment.save(file_path)
-                media_paths.append(str(file_path))
-                markers.append(f"[attachment: {file_path.name}]")
+                await attachment.save(file_path)               
+
+                try:
+                    if self._is_discord_voice_message(attachment):                   
+                        transcript = await asyncio.to_thread(self._transcribe_sync, file_path)
+                        markers.append(
+                            f"[message vocal transcrit] {transcript}" if transcript
+                            else "[message vocal - transcription vide]"
+                        )
+                    else:            
+                        media_paths.append(str(file_path))
+                        markers.append(f"[attachment: {file_path.name}]")
+                except Exception as e:
+                    self.logger.warning("Whisper transcription failed: {}", e)
+                    markers.append(f"[attachment: {file_path} - transcription failed]")
+                
             except Exception as e:
                 self.logger.warning("Failed to download attachment: {}", e)
                 markers.append(f"[attachment: {filename} - download failed]")
+
+        return media_paths, markers
+
+
+    async def old_download_attachments(
+        self,
+        attachments: list[discord.Attachment],
+    ) -> tuple[list[str], list[str]]:
+        """Download supported attachments and return paths + display markers."""
+        media_paths: list[str] = []
+        markers: list[str] = []
+        media_dir = get_media_dir("discord")
+        media_dir.mkdir(parents=True, exist_ok=True)
+
+        for attachment in attachments:
+            filename = attachment.filename or "attachment"
+            if attachment.size and attachment.size > MAX_ATTACHMENT_BYTES:
+                markers.append(f"[attachment: {filename} - too large]")
+                continue
+
+            safe_name = safe_filename(filename)
+            file_path = media_dir / f"{attachment.id}_{safe_name}"
+
+            try:
+                await attachment.save(file_path)
+            except Exception as e:
+                self.logger.warning("Failed to download attachment: {}", e)
+                markers.append(f"[attachment: {filename} - download failed]")
+                continue
+
+            if self._is_discord_voice_message(attachment):
+                try:
+                    transcript = await asyncio.to_thread(self._transcribe_sync, file_path)
+                    markers.append(
+                        f"[message vocal transcrit] {transcript}" if transcript
+                        else "[message vocal - transcription vide]"
+                    )
+                except Exception as e:
+                    self.logger.warning("Whisper transcription failed: {}", e)
+                    markers.append(f"[attachment: {file_path} - transcription failed]")
+                continue
+
+            media_paths.append(str(file_path))
+            markers.append(f"[attachment: {file_path.name}]")
 
         return media_paths, markers
 

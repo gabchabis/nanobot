@@ -2128,6 +2128,16 @@ class OpenAICompatProvider(LLMProvider):
             kwargs["stream"] = True
             kwargs["timeout"] = idle_timeout_s
             kwargs["stream_options"] = {"include_usage": True}
+
+            # permet de sauvegarder au format json le message envoyé au llm
+            """import json
+            debug_kwargs = {k: v for k, v in kwargs.items() if k != "messages"}
+            print(f"DEBUG num_messages={len(kwargs.get('messages', []))}")
+            print(f"DEBUG num_tools={len(kwargs.get('tools') or [])}")
+            print(f"DEBUG other_kwargs={debug_kwargs}")
+            with open("C:/Users/isisc/nanobot_debug_payload.json", "w", encoding="utf-8") as f:
+                json.dump(kwargs, f, indent=2, default=str)"""
+
             chat_stream = cast(
                 Any,
                 await client.chat.completions.create(**kwargs),
