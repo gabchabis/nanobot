@@ -2386,3 +2386,12 @@ class AgentLoop:
             lock = asyncio.Lock()
             self._session_locks[session_key] = lock
         return lock
+
+    def has_active_turns(self, *, exclude_prefix: str = "dream:") -> bool:
+        """Return True if any session other than one matching exclude_prefix is mid-turn."""
+        for key, lock in list(self._session_locks.items()):
+            if key.startswith(exclude_prefix):
+                continue
+            if lock.locked():
+                return True
+        return False

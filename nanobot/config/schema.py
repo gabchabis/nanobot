@@ -65,7 +65,11 @@ class DreamConfig(Base):
         default=None,
         validation_alias=AliasChoices("modelOverride", "model", "model_override"),
     )  # Model preset name for Dream sessions
-
+    only_when_idle: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("onlyWhenIdle", "only_when_idle"),
+    )  # Skip a scheduled run if any other session has an active turn in progress
+    
     def build_schedule(self, timezone: str) -> CronSchedule:
         """Build the runtime schedule, preferring the legacy cron override if present."""
         if self.cron:

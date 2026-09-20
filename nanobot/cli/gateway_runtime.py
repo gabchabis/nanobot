@@ -562,6 +562,13 @@ def _run_gateway(
         if job.name == "dream":
             from nanobot.agent.memory import MemoryStore
 
+            dream_cfg = config.agents.defaults.dream
+            if dream_cfg.only_when_idle and agent.has_active_turns():
+                logger.info(
+                    "Dream: skipped this run, an active session turn is in progress"
+                )
+                return None
+
             dream_session_key = MemoryStore.dream_session_key
             prune_dream_sessions = MemoryStore.prune_dream_sessions
 
