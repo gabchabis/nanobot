@@ -25,6 +25,12 @@ if TYPE_CHECKING:
     tool_parameters_schema(
         task=StringSchema("The task for the subagent to complete"),
         label=StringSchema("Optional short label for the task (for display)"),
+        model_preset=StringSchema(
+            description=(
+                "Optional named model preset for this subagent (e.g. 'secondary' for "
+                "complex or demanding tasks). Defaults to the current session's model."
+            ),
+        ),
         temperature=NumberSchema(
             description=(
                 "Optional sampling temperature for the subagent "
@@ -48,15 +54,16 @@ if TYPE_CHECKING:
 class SpawnTool(Tool):
     """Tool to spawn a subagent for background task execution."""
 
-    def __init__(self, manager: "SubagentManager"):
+    def __init__(self, manager: "SubagentManager", runtime_control: "RuntimeControl | None" = None):
         self._manager = manager
+        self._runtime_control = runtime_control
 
     @classmethod
     def create(cls, ctx: ToolContext) -> Tool:
         manager = ctx.subagent_manager
         if manager is None:
             raise RuntimeError("SpawnTool requires an initialized subagent manager")
-        return cls(manager=manager)
+        return cls(manager=manager, runtime_control=ctx.runtime_control)
 
     @property
     def name(self) -> str:
@@ -68,6 +75,8 @@ class SpawnTool(Tool):
             "Spawn a subagent to handle a task in the background. "
             "Use this for complex or time-consuming tasks that can run independently. "
             "Set wait=true for a consultation whose result must inform the current turn. "
+            "Set model_preset to run the subagent on a different (e.g. stronger) model "
+            "than the current session. "
             "The subagent will complete the task and report back when done. "
             "For deliverables or existing projects, inspect the workspace first "
             "and use a dedicated subdirectory when helpful."
@@ -82,6 +91,7 @@ class SpawnTool(Tool):
         self,
         task: str,
         label: str | None = None,
+        model_preset: str | None = None,
         temperature: float | None = None,
         wait: bool = False,
         **kwargs: Any,
@@ -90,6 +100,18 @@ class SpawnTool(Tool):
         request_ctx = current_request_context()
         if request_ctx is None or request_ctx.runtime is None:
             return ToolResult.error("Error: spawn requires an active model runtime")
+
+        runtime = request_ctx.runtime
+        if model_preset:
+            if self._runtime_control is None:
+                return ToolResult.error(
+                    "Error: model_preset override is not available in this context"
+                )
+            try:
+                runtime = self._runtime_control.resolve_preset(model_preset)
+            except KeyError as exc:
+                return ToolResult.error(f"Error: {exc}")
+                
         origin_channel = request_ctx.channel
         origin_chat_id = request_ctx.chat_id
         session_key = request_ctx.session_key or f"{origin_channel}:{origin_chat_id}"

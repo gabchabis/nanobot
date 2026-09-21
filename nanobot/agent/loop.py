@@ -233,6 +233,10 @@ class AgentLoop:
     def model_preset(self) -> str | None:
         return self.runtime_resolver.model_preset
 
+    def resolve_model_preset(self, name: str) -> LLMRuntime:
+        """Resolve a named preset to a runtime without changing the session default."""
+        return self.runtime_resolver.resolve_preset(name)
+
     @model_preset.setter
     def model_preset(self, name: str | None) -> None:
         self.set_model_preset(name)

@@ -110,6 +110,7 @@ class RuntimeControl(Protocol):
 
     def set_scratchpad(self, key: str, value: JsonValue, *, max_keys: int) -> None: ...
 
+    def resolve_preset(self, name: str) -> LLMRuntime: ...
 
 class _RuntimeControlTarget(Protocol):
     """Narrow structural dependency required by ``AgentRuntimeControl``."""
@@ -130,6 +131,7 @@ class _RuntimeControlTarget(Protocol):
     @property
     def model_presets(self) -> Mapping[str, ModelPresetConfig]: ...
 
+
     @property
     def context_window_tokens(self) -> int: ...
 
@@ -138,6 +140,8 @@ class _RuntimeControlTarget(Protocol):
 
     @property
     def tool_names(self) -> list[str]: ...
+
+    def resolve_model_preset(self, name: str) -> LLMRuntime: ...
 
     def set_runtime_model(self, model: str) -> LLMRuntime: ...
 
@@ -190,6 +194,9 @@ class AgentRuntimeControl:
         if session_key is not None:
             return self.__target.set_session_model_preset(session_key, name)
         return self.__target.set_model_preset(name)
+
+    def resolve_preset(self, name: str) -> LLMRuntime:
+        return self.__target.resolve_model_preset(name)
 
     def set_max_iterations(self, value: int) -> None:
         self.__target.max_iterations = value
@@ -284,6 +291,8 @@ def _snapshot_subagent_status(status: SubagentStatus) -> dict[str, object]:
         "usage": status.usage.to_dict() if status.usage is not None else None,
         "stop_reason": status.stop_reason,
         "error": status.error,
+        "model": status.model,
+        "model_preset": status.model_preset,
     }
 
 

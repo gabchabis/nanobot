@@ -62,6 +62,8 @@ class SubagentStatus:
     usage: LLMUsage | None = None
     stop_reason: str | None = None
     error: str | None = None
+    model: str = ""
+    model_preset: str | None = None
 
 
 class _SubagentHook(AgentHook):
@@ -256,6 +258,8 @@ class SubagentManager:
             label=display_label,
             task_description=task,
             started_at=time.monotonic(),
+            model=runtime.model,
+            model_preset=runtime.model_preset,
         )
         self._task_statuses[task_id] = status
 
@@ -319,6 +323,8 @@ class SubagentManager:
             label=display_label,
             task_description=task,
             started_at=time.monotonic(),
+            model=runtime.model,
+            model_preset=runtime.model_preset,
         )
         self._task_statuses[task_id] = status
         logger.info("Running inline subagent [{}]: {}", task_id, display_label)
