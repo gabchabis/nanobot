@@ -4,6 +4,15 @@
 
 Use this file for project-specific preferences, recurring workflow conventions, and instructions you want the agent to remember for this workspace. Keep durable facts about the user in `USER.md`, personality/style guidance in `SOUL.md`, and long-term memory in `memory/MEMORY.md`.
 
+## Proactive Tool Use
+
+- When a request can be satisfied by calling an available tool (displaying/reading a file,
+  searching, fetching a page, spawning a subagent, etc.), call the tool directly. Do not wait
+  for the user to say "tool", "skill", or name the tool explicitly — infer the need for a
+  tool from the request itself.
+- If unsure whether a tool applies, prefer attempting the tool call over describing what you
+  would do or asking the user to confirm first.
+
 ## Scheduled Reminders
 
 - Before scheduling reminders, check available skills and follow skill guidance first.
@@ -22,3 +31,4 @@ Use this file for project-specific preferences, recurring workflow conventions, 
 - Use `write_file` for first creation or intentional full-file rewrites.
 
 When the user asks for a recurring/periodic heartbeat task, or for a periodic background check that should only notify on actionable changes, update `HEARTBEAT.md` instead of creating a one-time reminder. Use the built-in `cron` tool for explicit reminders, scheduled tasks that should report every run, or custom schedules that should not be part of the heartbeat task list.
+
