@@ -1041,6 +1041,11 @@ class OpenAICompatProvider(LLMProvider):
             wire_effort = None
         elif wire_effort and semantic_effort != "none":
             kwargs["reasoning_effort"] = wire_effort
+        elif semantic_effort == "none" and spec and spec.name == "ollama":
+            # Ollama's OpenAI-compatible endpoint only turns thinking off when it
+            # is told to. Omitting the field leaves thinking models (e.g. Qwen3)
+            # reasoning, which burns small token budgets such as title generation.
+            kwargs["reasoning_effort"] = "none"
 
         # Only send thinking controls when reasoning_effort is explicit so
         # omitting the config preserves each provider's default.

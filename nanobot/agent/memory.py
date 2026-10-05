@@ -48,6 +48,11 @@ if TYPE_CHECKING:
     from nanobot.agent.tools.registry import ToolRegistry
     from nanobot.utils.llm_runtime import LLMRuntime
 
+# Summarising history does not need chain-of-thought. Thinking models otherwise
+# can spend the whole output budget reasoning and end in ``finish_reason=length``,
+# which forces a lossy raw dump of the history.
+ARCHIVE_REASONING_EFFORT = "none"
+
 # ---------------------------------------------------------------------------
 # MemoryStore — pure file I/O layer
 # ---------------------------------------------------------------------------
@@ -905,7 +910,7 @@ class MemoryArchiver:
                     tools=call_tools,
                     temperature=runtime.generation.temperature,
                     max_tokens=runtime.generation.max_tokens,
-                    reasoning_effort=runtime.generation.reasoning_effort,
+                    reasoning_effort=ARCHIVE_REASONING_EFFORT,
                     provider_context=provider_context,
                 )
         except Exception:

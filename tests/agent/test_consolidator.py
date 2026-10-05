@@ -241,7 +241,8 @@ class TestConsolidatorSummarize:
         assert call["model"] == admitted.model
         assert call["temperature"] == 0.25
         assert call["max_tokens"] == 321
-        assert call["reasoning_effort"] == "medium"
+        # Consolidation never reasons, whatever the turn's reasoning_effort was.
+        assert call["reasoning_effort"] == "none"
 
     async def test_summarize_appends_to_history(
         self, consolidator, mock_provider, store, runtime
