@@ -487,6 +487,11 @@ class AgentLoop:
         resolved = config.resolve_preset()
         model = extra.pop("model", None) or resolved.model
         context_window_tokens = extra.pop("context_window_tokens", None) or resolved.context_window_tokens
+        hook_factories = list(extra.pop("hook_factories", None) or [])
+        if defaults.supervisor.mode != "off":
+            from nanobot.agent.hooks.supervisor import make_supervisor_hook_factory
+
+            hook_factories.append(make_supervisor_hook_factory(defaults.supervisor))
         provider_snapshot_loader = extra.pop("provider_snapshot_loader", None)
         preset_snapshot_loader = extra.pop("preset_snapshot_loader", None) or preset_helpers.make_preset_snapshot_loader(
             config,
@@ -518,6 +523,7 @@ class AgentLoop:
             provider_snapshot_loader=provider_snapshot_loader,
             preset_snapshot_loader=preset_snapshot_loader,
             tool_registry=tool_registry,
+            hook_factories=hook_factories,
             **extra,
         )
 

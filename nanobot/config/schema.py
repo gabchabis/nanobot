@@ -50,6 +50,21 @@ class TranscriptionConfig(Base):
     max_upload_mb: int = Field(default=25, ge=1, le=100)
 
 
+class SupervisorConfig(Base):
+    """Supervisor hook: keeps weaker models on track during an agent turn.
+
+    ``observe`` only logs what it would do (grep ``[supervisor]`` in the logs) so
+    thresholds can be calibrated; ``enforce`` injects short corrective messages.
+    """
+
+    mode: Literal["off", "observe", "enforce"] = "observe"
+    max_nudges: int = Field(default=6, ge=0)  # Corrective messages allowed per turn
+    max_announce_nudges: int = Field(default=2, ge=0)  # "announced but did not act" retries
+    repeat_threshold: int = Field(default=3, ge=2)  # Same call + same result N times
+    stall_iterations: int = Field(default=8, ge=2)  # Iterations without any new information
+    overthink_tokens: int = Field(default=3000, ge=500)  # Output tokens without new info
+
+
 class DreamConfig(Base):
     """Dream memory consolidation configuration."""
 
@@ -159,6 +174,7 @@ class AgentDefaults(Base):
         ge=0,
     )  # Minimum interval in seconds between scans for idle sessions
     dream: DreamConfig = Field(default_factory=DreamConfig)
+    supervisor: SupervisorConfig = Field(default_factory=SupervisorConfig)
 
     @model_validator(mode="before")
     @classmethod

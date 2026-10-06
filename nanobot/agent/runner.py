@@ -164,6 +164,7 @@ class AgentRunner:
         iteration: int | None = None,
         allow_continuation: bool = False,
         wait_at_terminal: bool = False,
+        hook_continuation: str | None = None,
     ) -> tuple[bool, int]:
         """Drain pending injections. Returns (should_continue, updated_cycles).
 
@@ -177,6 +178,9 @@ class AgentRunner:
         if injection_cycles < _MAX_INJECTION_CYCLES:
             injections = await self._drain_injections(spec)
             real_injection = bool(injections)
+        if not injections and hook_continuation and assistant_message is not None:
+            # A hook vetoed the final response (see AgentHook.before_finalize).
+            injections = [{"role": "user", "content": hook_continuation}]
         if not injections and allow_continuation and assistant_message is not None:
             continuation = self._build_continuation_message(spec)
             if continuation is not None:
@@ -682,6 +686,15 @@ class AgentRunner:
                     response,
                 )
 
+            hook_continuation: str | None = None
+            if (
+                assistant_message is not None
+                and response.finish_reason
+                not in {"error", "length", "refusal", "content_filter"}
+                and not response.tool_calls
+            ):
+                hook_continuation = await hook.before_finalize(context, clean)
+
             # Check for mid-turn injections BEFORE signaling stream end.
             # If injections are found we keep the stream alive (resuming=True)
             # so streaming channels don't prematurely finalize the card.
@@ -690,6 +703,7 @@ class AgentRunner:
                 conversation_state=conversation_state,
                 phase="after final response",
                 iteration=iteration,
+                hook_continuation=hook_continuation,
                 allow_continuation=(
                     response.finish_reason not in {"refusal", "content_filter"}
                 ),

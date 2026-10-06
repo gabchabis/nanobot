@@ -147,6 +147,20 @@ class AgentHook:
     async def after_iteration(self, context: AgentHookContext) -> None:
         pass
 
+    async def before_finalize(
+        self,
+        context: AgentHookContext,
+        content: str | None,
+    ) -> str | None:
+        """Veto a plain-text final response.
+
+        Called when the model answered without tool calls and the run is about
+        to end. Return a message to keep the run going: it is injected as a user
+        message and the loop continues. Return ``None`` to let the run finish.
+        Implementations must bound how often they veto, or the run never ends.
+        """
+        return None
+
     def finalize_content(self, context: AgentHookContext, content: str | None) -> str | None:
         return content
 
@@ -255,6 +269,24 @@ class CompositeHook(AgentHook):
             params,
             error,
         )
+
+    async def before_finalize(
+        self,
+        context: AgentHookContext,
+        content: str | None,
+    ) -> str | None:
+        # First hook with a veto wins; a faulty hook must not break the loop.
+        for h in self._hooks:
+            try:
+                message = await h.before_finalize(context, content)
+            except Exception:
+                if getattr(h, "_reraise", False):
+                    raise
+                logger.exception("AgentHook.before_finalize error in {}", type(h).__name__)
+                continue
+            if message:
+                return message
+        return None
 
     async def emit_reasoning(self, reasoning_content: str | None) -> None:
         await self._for_each_hook_safe("emit_reasoning", reasoning_content)
