@@ -694,6 +694,16 @@ class AgentRunner:
                 and not response.tool_calls
             ):
                 hook_continuation = await hook.before_finalize(context, clean)
+                # Contract is ``str | None``. Anything else (a non-str object, a blank
+                # string) must not be injected as a user message, or the run loops on it.
+                if hook_continuation is not None and not (
+                    isinstance(hook_continuation, str) and hook_continuation.strip()
+                ):
+                    logger.warning(
+                        "Ignoring before_finalize result of type {}: expected a non-empty str or None",
+                        type(hook_continuation).__name__,
+                    )
+                    hook_continuation = None
 
             # Check for mid-turn injections BEFORE signaling stream end.
             # If injections are found we keep the stream alive (resuming=True)

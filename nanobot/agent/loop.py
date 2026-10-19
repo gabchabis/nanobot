@@ -492,6 +492,10 @@ class AgentLoop:
             from nanobot.agent.hooks.supervisor import make_supervisor_hook_factory
 
             hook_factories.append(make_supervisor_hook_factory(defaults.supervisor))
+        if defaults.tool_result_aging.mode != "off":
+            from nanobot.agent.hooks.tool_result_aging import make_tool_result_aging_hook_factory
+
+            hook_factories.append(make_tool_result_aging_hook_factory(defaults.tool_result_aging))
         provider_snapshot_loader = extra.pop("provider_snapshot_loader", None)
         preset_snapshot_loader = extra.pop("preset_snapshot_loader", None) or preset_helpers.make_preset_snapshot_loader(
             config,

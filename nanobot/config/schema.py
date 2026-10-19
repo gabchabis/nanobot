@@ -65,6 +65,20 @@ class SupervisorConfig(Base):
     overthink_tokens: int = Field(default=3000, ge=500)  # Output tokens without new info
 
 
+class ToolResultAgingConfig(Base):
+    """Tool-result aging hook: collapses old tool outputs to a stub + archived file.
+
+    ``observe`` only logs the savings it would make (grep ``[tool-aging]``) so the
+    thresholds can be calibrated; ``enforce`` rewrites the transcript.
+    """
+
+    mode: Literal["off", "observe", "enforce"] = "observe"
+    keep_recent: int = Field(default=3, ge=0)  # Latest tool results always kept intact
+    min_chars: int = Field(default=1500, ge=200)  # Only results at least this long are collapsed
+    preview_chars: int = Field(default=300, ge=0, le=2000)  # Characters kept in the stub
+    exempt_tools: list[str] = Field(default_factory=lambda: ["read_file"])
+
+
 class DreamConfig(Base):
     """Dream memory consolidation configuration."""
 
@@ -175,6 +189,7 @@ class AgentDefaults(Base):
     )  # Minimum interval in seconds between scans for idle sessions
     dream: DreamConfig = Field(default_factory=DreamConfig)
     supervisor: SupervisorConfig = Field(default_factory=SupervisorConfig)
+    tool_result_aging: ToolResultAgingConfig = Field(default_factory=ToolResultAgingConfig)
 
     @model_validator(mode="before")
     @classmethod

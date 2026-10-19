@@ -681,6 +681,7 @@ class TestEphemeralHooks:
         spy.wants_streaming.return_value = False
         spy.before_iteration = AsyncMock()
         spy.after_iteration = AsyncMock()
+        spy.before_finalize = AsyncMock(return_value=None)
 
         with (
             patch("nanobot.agent.loop.SessionManager"),
